@@ -54,7 +54,7 @@ def main(args):
          'ets_forec': ETS,
          'nnetar_forec': NNETAR,
          'tbats_forec': TBATS,
-         'stlm_ar_forec': lambda freq: ARIMA(freq, d=0, D=0) if freq == 1 else STLM(freq, modelfunction=stats.ar),
+         'stlm_ar_forec': lambda freq: ARIMA(freq, d=0, D=0),
          'rw_drift_forec': lambda freq: RandomWalk(freq=freq, drift=True),
          'theta_forec': ThetaF,
          'naive_forec': Naive,
