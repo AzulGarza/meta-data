@@ -79,7 +79,7 @@ def main(args):
 
     test_features = tsfeatures_r_wide(test_data, parallel=True).reset_index()
 
-    save_data = (validation_features, validation_preds, test_features, test_preds)
+    save_data = (validation_data, validation_features, validation_preds, test_data, test_features, test_preds)
 
     pd.to_pickle(save_data, directory + '/m3-meta-data.pickle')
 
