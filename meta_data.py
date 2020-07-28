@@ -2,12 +2,13 @@
 # coding: utf-8
 
 import argparse
+import os
 
 import numpy as np
 import pandas as pd
 
 from tsfeatures.tsfeatures_r import tsfeatures_r_wide
-from tscompdata import m3
+from tscompdata import m3, tourism
 from rpy2.robjects.packages import importr
 from fforma.meta_model import MetaModels
 from fforma.base_models import Naive2
@@ -40,13 +41,17 @@ def ds_holdout(series):
 
 def main(args):
     directory = args.directory
+    kind = args.kind
 
-    m3_data = m3.get_complete_wide_data(directory)
+    if kind == 'M3':
+        data = m3.get_complete_wide_data(directory)
+    elif kind == 'TOURISM':
+        data = tourism.get_complete_wide_data(directory)
 
-    y_train_val = [split_holdout(row) for idx, row in m3_data.iterrows()]
-    m3_data['y_train'], m3_data['y_val'] = zip(*y_train_val)
+    y_train_val = [split_holdout(row) for idx, row in data.iterrows()]
+    data['y_train'], data['y_val'] = zip(*y_train_val)
 
-    m3_data['ds'] = [ds_holdout(row) for idx, row in m3_data.iterrows()]
+    data['ds'] = [ds_holdout(row) for idx, row in data.iterrows()]
 
     stats = importr('stats')
 
@@ -55,7 +60,7 @@ def main(args):
          'ets_forec': ETS,
          'nnetar_forec': NNETAR,
          'tbats_forec': TBATS,
-         'stlm_ar_forec': lambda freq: STLMFFORMA(freq, modelfunction=stats.ar) if freq > 1 else ARIMA(freq, d=0, D=0),
+         'stlm_ar_forec': lambda freq: STLMFFORMA(freq),
          'rw_drift_forec': lambda freq: RandomWalk(freq=freq, drift=True),
          'theta_forec': ThetaF,
          'naive_forec': Naive,
@@ -65,7 +70,7 @@ def main(args):
 
     print('Validation meta data')
 
-    validation_data = m3_data[['unique_id', 'ds', 'horizon', 'seasonality', 'y_train', 'y_val']].rename(columns={'y_train': 'y'})
+    validation_data = data[['unique_id', 'ds', 'horizon', 'seasonality', 'y_train', 'y_val']].rename(columns={'y_train': 'y'})
     vaidation_models = MetaModels(meta_models).fit(validation_data)
     validation_preds = vaidation_models.predict(validation_data.drop(['seasonality', 'y'], 1))
 
@@ -73,7 +78,7 @@ def main(args):
 
     print('Test meta data')
 
-    test_data = m3_data[['unique_id', 'ds', 'horizon', 'seasonality', 'y', 'y_test']]
+    test_data = data[['unique_id', 'ds', 'horizon', 'seasonality', 'y', 'y_test']]
     test_models = MetaModels(meta_models).fit(test_data)
     test_preds = test_models.predict(test_data.drop(['seasonality', 'y'], 1))
 
@@ -81,12 +86,21 @@ def main(args):
 
     save_data = (validation_data, validation_features, validation_preds, test_data, test_features, test_preds)
 
-    pd.to_pickle(save_data, directory + '/m3-meta-data.pickle')
+    print('Saving data')
+
+    dir_meta_data = f'{directory}/meta-data'
+    if not os.path.exists(dir_meta_data):
+        os.mkdir(dir_meta_data)
+
+    pd.to_pickle(save_data, f'{dir_meta_data}/{kind}-meta-data.pickle')
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Get metadata for M3')
+    parser = argparse.ArgumentParser(description='Get metadata for M3 or TOURISM')
     parser.add_argument("--directory", required=True, type=str,
-                      help="directory where M3 data will be downloaded")
+                        help="directory where M3 data will be downloaded")
+
+    parser.add_argument("--kind", required=True, type=str,
+                        help="M3 or TOURISM")
 
     args = parser.parse_args()
 
